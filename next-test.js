@@ -1,22 +1,17 @@
 'use strict';
 const puppeteer = require('puppeteer');
+const { printScreen } = require('./lib/helpers');
 
-// Puppeteer #42
+(async () => {
+  const browser = await puppeteer.launch({
+    headless: false,
+    slowMo: 50,
+    devtools: false,
+  });
+  const page = await browser.newPage();
 
-async function run() {
-  let browser = null;
-  try {
-    browser = await puppeteer.launch();
-    const page = await browser.newPage();
+  await page.goto('https://bbc.com');
 
-    const start = Date.now();
-    await page.goto('https://cnn.com', { waitUntil: 'networkidle2' });
-    console.log('Took', Date.now() - start, 'ms');
-  } catch (error) {
-    console.log(error);
-  } finally {
-    if (browser) browser.close();
-  }
-}
-
-run();
+  await page.waitForTimeout(5000);
+  await browser.close();
+})();
