@@ -49,7 +49,6 @@ https: (async () => {
 
   // Steps:
   await page.goto(url);
-  // await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
   await page.setViewport({ width: 1024, height: 768 });
   let frames = await page.frames();
   console.log('Getting frame...');

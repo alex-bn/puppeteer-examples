@@ -1,34 +1,20 @@
 const { Cluster } = require('puppeteer-cluster');
-
-// # Puppeteer 43
-// npm install puppeteer-cluster
-
 (async () => {
-  // Create cluster with 30 workers
+  // Create cluster with 10 workers
   const cluster = await Cluster.launch({
     concurrency: Cluster.CONCURRENCY_CONTEXT,
     maxConcurrency: 30,
     monitor: true,
     timeout: 500000,
     puppeteerOptions: {
-      slowMo: 50, // will fail without this...
+      slowMo: 50, // pass the slowMo options otherwise will fail (looking fo a solution)
       headless: true,
     },
   });
 
-  // Print error to console
-  // cluster.on('taskerror', (err, data) => {
-  //   console.log(`Error crawling ${data}: ${err.message}`);
-  // });
-
-  cluster.on('taskerror', (err, data, willRetry) => {
-    if (willRetry) {
-      console.warn(
-        `Encountered an error while crawling ${data}. ${err.message}\nThis job will be retried`
-      );
-    } else {
-      console.error(`Failed to crawl ${data}: ${err.message}`);
-    }
+  // Print errors to console
+  cluster.on('taskerror', (err, data) => {
+    console.log(`Error crawling ${data}: ${err.message}`);
   });
 
   // Dumb sleep function to wait for page load
@@ -37,8 +23,8 @@ const { Cluster } = require('puppeteer-cluster');
   }
 
   await cluster.task(async ({ page, data: url, worker }) => {
-    //  const browser = await puppeteer.launch({ headless: false, slowMo: 50 });
-    //  const page = await browser.newPage();
+    // const browser = await puppeteer.launch({ headless: false, slowMo: 50 });
+    // const page = await browser.newPage();
 
     const messengerFrameSelector = '#web-messenger-container';
     const messengerBubbleSelector = '#messenger-button';
@@ -46,60 +32,57 @@ const { Cluster } = require('puppeteer-cluster');
     const clickDelay = 3000;
     const waitTimeout = 5000;
 
-    // Helper function 1
     const waitForResponse = async (frame, response) => {
       await frame.waitForFunction(
         `document.querySelector("body").innerText.includes("${response}")`
       );
       return;
     };
-    // Helper function 2
+
     const sendMessage = async (inputSelector, message) => {
       await inputSelector.type(message);
       await inputSelector.press('Enter');
       return;
     };
 
-    // Helper function 3
     const clickButton = async (frame, button) => {
       const buttonSelector = await messengerFrame.waitForSelector(
         `#conversation > div.messages-container > div > div.reply-container > button:nth-child(${button}) > span`
       );
       await buttonSelector.click();
     };
-    // Helper function 4
+
     async function timeout(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // Steps:
     await page.goto(url);
     await page.setViewport({ width: 1024, height: 768 });
     let frames = await page.frames();
     await page.waitForSelector(messengerFrameSelector, {
       timeout: waitTimeout,
     });
-
-    //
     const messengerFrameContainer = await page.$(messengerFrameSelector);
     const messengerFrame = await messengerFrameContainer.contentFrame();
     const messengerBubble = await messengerFrame.waitForSelector(
       messengerBubbleSelector,
-      { timeout: waitTimeout }
+      {
+        timeout: waitTimeout,
+      }
     );
-
-    //
     await messengerBubble.click();
     let messageInput = await messengerFrame.waitForSelector(
       messengerInputSelector,
-      { timeout: waitTimeout }
+      {
+        timeout: waitTimeout,
+      }
     );
 
     await sendMessage(messageInput, 'Hello');
     await waitForResponse(messengerFrame, 'What do you think?');
     await clickButton(messengerFrame, 1);
     await waitForResponse(messengerFrame, 'What should l call you?');
-    await sendMessage(messageInput, 'Joe Adams');
+    await sendMessage(messageInput, 'Tony Harrison');
     await clickButton(messengerFrame, 2);
 
     // Create an array of known messenger responses to react to
@@ -127,7 +110,6 @@ const { Cluster } = require('puppeteer-cluster');
   for (let i = 1; i <= 30; i++) {
     cluster.queue('https://stackchat.com/');
   }
-
   await cluster.idle();
   await cluster.close();
 })();
